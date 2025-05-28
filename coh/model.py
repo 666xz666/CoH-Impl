@@ -69,7 +69,6 @@ class CoH(nn.Module):
         self.init()
         
     def init(self):
-        # self.his_list_batch = []         # the current order his list
         self.chain_list_batch = []       # the current order his chain list
         self.q_list = None               # the query list
         
@@ -115,7 +114,7 @@ Government (Nigeria)\tMake an appeal or request to\twhom\ton the 340th day?
             logging.error(f"Error testing LLM: {e}")
             return False
     
-    def get_n_his(self, his_list_batch, LR=False):
+    def get_n_his(self, his_list_batch):
         """
         Get top n histories from first-order histories for a batch of queries
         """
@@ -336,16 +335,16 @@ Government (Nigeria)\tMake an appeal or request to\twhom\ton the 340th day?
         
         # Initialize his_list_batch by getting the initial (first-order) histories
         # for each query's subject, occurring before the query time.
-        self.his_list_batch = []
+        his_list_batch = []
         for q in q_list:
             subject_id = q[0]
             query_time = q[2]
             # Retrieve the most recent 'expand_n' histories for the subject
             # that happened *before* the query_time.
             initial_histories = self.get_single_temporal_neighbor(subject_id, query_time, 100)
-            self.his_list_batch.append(initial_histories)
+            his_list_batch.append(initial_histories)
         
-        self.get_n_his()
+        self.get_n_his(his_list_batch)
         step_scores_list.append(self.get_predict_score())
         
         for i in range(self.steps - 1):     
