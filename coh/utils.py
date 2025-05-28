@@ -1,12 +1,20 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from vllm import LLM, SamplingParams
+import re
+
+def remove_thinking(text):
+    pattern = r"(?s)<think>.*?</think>"
+    cleaned_text = re.sub(pattern, "", text)
+    return cleaned_text
 
 def parse_predict_answer(answer: str, dict) -> list:
     """
     parse LLM's predict to a list of entity name
     """
+    answer = remove_thinking(answer)
     list = [x.split(".")[-1].strip().lower().replace("\\", "") for x in answer.strip().splitlines()[1:-1]]
     candidates = [x for x in list if x in dict.keys()]
+    # print(candidates)
     return candidates
 
 def parse_ids_to_list(output, list):
@@ -14,6 +22,7 @@ def parse_ids_to_list(output, list):
     process LLM's output string
     "1, 2, 3, ..., 30"
     """
+    output = remove_thinking(output)
     i_list = []
     for item in output.split(","):
         try:
@@ -22,12 +31,14 @@ def parse_ids_to_list(output, list):
             i_list.append(num)
         except Exception:
             continue
-    return [list[i] for i in sorted(set(i_list))]
+    res = [list[i] for i in sorted(set(i_list))]
+    # print(res)
+    return res
     
 def int_to_ordinal(num):
     """
     History Processing (CoH 3.1)
-    153 -> "on the 153rd day"
+    48 -> "on the 2nd day"
     """
     
     if num < 0:

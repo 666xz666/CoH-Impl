@@ -76,8 +76,8 @@ class CoH(nn.Module):
             res.append(self.id2entity[s] + "\t" + self.id2relation[r] + "\t" + self.id2entity[o] + "\t" + int_to_ordinal(t))
         return res
     
-    def generate(self, base_prompts: list[str], type):
-        return llm_generate(self.llm, self.tokenizer, self.params[type], base_prompts)
+    def generate(self, base_prompts: list[str]):
+        return llm_generate(self.llm, self.tokenizer, self.params, base_prompts)
 
     def test_llm(self) -> bool:
         """
@@ -102,13 +102,13 @@ Government (Nigeria), Make an appeal or request to, whom, on the 340th day?
     """
 )
         try:
-            output = self.generate([test_prompt], "coh_predict")
+            output = self.generate([test_prompt])
             return isinstance(output, list) and len(output) > 0
         except Exception as e:
             logging.error(f"Error testing LLM: {e}")
             return False
     
-    def get_n_his(self):
+    def get_n_his(self, LR=False):
         """
         Get top n histories from first-order histories for a batch of queries
         """
@@ -131,11 +131,13 @@ Government (Nigeria), Make an appeal or request to, whom, on the 340th day?
             )
             prompts.append(prompt)
         
-        outputs = self.generate(prompts, "coh_pick")
+        outputs = self.generate(prompts)
         
         for output, his_list in zip(outputs, self.his_list_batch):
             selected_his_list = parse_ids_to_list(output, his_list)
             chain_list = [[item] for item in selected_his_list] # one-element chain
+            if len(chain_list) > self.top_n:
+                chain_list = chain_list[:self.top_n]
             new_his_list_batch.append(selected_his_list)
             self.chain_list_batch.append(chain_list)
             
@@ -162,10 +164,13 @@ Government (Nigeria), Make an appeal or request to, whom, on the 340th day?
             )
             prompts.append(prompt)
         
-        outputs = self.generate(prompts, "coh_pick")
+        outputs = self.generate(prompts)
         
         for output, chain_list in zip(outputs, self.chain_list_batch):
-            results.append(parse_ids_to_list(output, chain_list))
+            picked_list = parse_ids_to_list(output, chain_list)
+            if len(picked_list) > self.top_n:
+                picked_list = picked_list[:self.top_n]
+            results.append(picked_list)
         
         self.chain_list_batch = results
         
@@ -275,7 +280,7 @@ Government (Nigeria), Make an appeal or request to, whom, on the 340th day?
                 res[self.entity2id[candidates[i]]] = i + 1
             return res
             
-        outputs = self.generate(prompts, "coh_predict")
+        outputs = self.generate(prompts)
         
         # TODO: peek the predict text outputs
         # for text in outputs:

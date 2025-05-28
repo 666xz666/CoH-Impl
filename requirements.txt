@@ -21,6 +21,7 @@ attrs==25.3.0
 auto_gptq==0.7.1
 babel==2.17.0
 beautifulsoup4==4.13.4
+bitblas==0.1.0.post1
 bitsandbytes==0.45.5
 blake3==1.0.5
 bleach==6.2.0
@@ -32,7 +33,9 @@ click==8.1.8
 cloudpickle==3.1.1
 comm==0.2.2
 compressed-tensors==0.9.3
+cpplint==2.0.2
 cupy-cuda12x==13.4.1
+Cython==3.1.1
 datasets==3.6.0
 debugpy==1.8.14
 decorator==5.2.1
@@ -43,9 +46,12 @@ dill==0.3.8
 diskcache==5.6.3
 distro==1.9.0
 dnspython==2.7.0
+docutils==0.21.2
+dtlib==0.0.0.dev2
 einops==0.8.1
 email_validator==2.2.0
 exceptiongroup==1.3.0
+execnet==2.1.1
 executing==2.2.0
 fastapi==0.115.12
 fastapi-cli==0.0.7
@@ -68,6 +74,7 @@ httpx==0.28.1
 huggingface-hub==0.32.0
 idna==3.10
 importlib_metadata==8.0.0
+iniconfig==2.1.0
 interegular==0.3.3
 ipykernel==6.29.5
 ipython==8.18.1
@@ -100,6 +107,7 @@ matplotlib-inline==0.1.7
 mdurl==0.1.2
 mistral_common==1.5.6
 mistune==3.1.3
+ml_dtypes==0.5.1
 mpmath==1.3.0
 msgpack==1.1.0
 msgspec==0.19.0
@@ -152,6 +160,7 @@ peft==0.15.2
 pexpect==4.9.0
 pillow==11.2.1
 platformdirs==4.3.8
+pluggy==1.6.0
 prometheus-fastapi-instrumentator==7.1.0
 prometheus_client==0.22.0
 prompt_toolkit==3.0.51
@@ -167,6 +176,8 @@ pycparser==2.22
 pydantic==2.11.5
 pydantic_core==2.33.2
 Pygments==2.19.1
+pytest==8.3.5
+pytest-xdist==3.7.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.0
 python-json-logger==3.3.0
@@ -174,6 +185,7 @@ python-multipart==0.0.20
 pytz==2025.2
 PyYAML==6.0.2
 pyzmq==26.4.0
+RapidFuzz==3.13.0
 ray==2.46.0
 referencing==0.36.2
 regex==2024.11.6
@@ -195,7 +207,9 @@ soupsieve==2.7
 stack-data==0.6.3
 starlette==0.46.2
 sympy==1.13.1
+tabulate==0.9.0
 terminado==0.18.1
+thefuzz==0.22.1
 tiktoken==0.9.0
 tinycss2==1.4.0
 tokenizers==0.21.1

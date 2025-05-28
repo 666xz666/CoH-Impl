@@ -3,8 +3,6 @@ import sys
 from collections import defaultdict
 import numpy as np
 import torch
-import yaml
-from vllm import LLM
 from datetime import datetime, timedelta
 
 from coh.utils import llm_generate
@@ -12,11 +10,6 @@ from coh.utils import llm_generate
 PackageDir = os.path.dirname(__file__)
 sys.path.insert(1, PackageDir)
 DataDir = os.path.join(os.path.dirname(__file__), 'data')
-
-# 加载 YAML 配置文件
-vllm_config = None
-with open("vllm_config.yaml", "r") as file:
-    vllm_config = yaml.safe_load(file)
 
 FLITER_PROMPT = """
 Do you know the fact that {query} ?
@@ -29,22 +22,6 @@ BASE_DATE_DICT = {
     'ICEWS18_forecasting': '2018-01-01',
     'ICEWS0515_forecasting': '2005-01-01'
     }
-
-def vllm_builder(model="mixtral"):
-    """
-    return vllm.LLM, param
-    """
-    config = vllm_config.get(model, {})
-
-    vllm_params = config.get("llm_params", {})
-    task_params = config.get("task_params", {})
-
-    if vllm_params["dtype"] == "torch.float16":
-        vllm_params["dtype"] = torch.float16
-        
-    llm = LLM(**vllm_params)
-        
-    return llm, task_params
 
 def try_gpu():
     return "cuda" if torch.cuda.is_available() else "cpu"
@@ -98,11 +75,15 @@ class Data:
 
         self.train_data = self._load_data(os.path.join(DataDir, dataset), "train")
         self.valid_data = self._load_data(os.path.join(DataDir, dataset), "valid")
+        self.test_data = self._load_data(os.path.join(DataDir, dataset), "test")
         
         if os.path.exists(os.path.join(DataDir, dataset, "test_" + self.model_name + ".txt")):
-            self.test_data = self._load_data(os.path.join(DataDir, dataset), "test_" + self.model_name)
+            print("cache for fliter test data found.")
+            self.fliter_test_data = self._load_data(os.path.join(DataDir, dataset), "test_" + self.model_name)
         else:
-            self.test_data = self._load_fliter_data(os.path.join(DataDir, dataset), "test")
+            print("no cache for fliter_test_data, do filter...")
+            self.fliter_test_data = self._load_fliter_data(os.path.join(DataDir, dataset), self.test_data, "test")
+            print("done.")
 
         # add reverse event into the data set
         if add_reverse_relation:
@@ -166,14 +147,13 @@ class Data:
         # Convert absolute dates to string format
         return absolute_date.strftime('%Y-%m-%d')
         
-    def _load_fliter_data(self, data_dir, data_type="test"):
+    def _load_fliter_data(self, data_dir, data, data_type="test"):
         def get_prompt(his):
             s, p, o, t, _ = his
             fact = self.id2entity[s] + "\t" + self.id2relation[p] + "\t" + self.id2entity[o] + "\ton " + self._relative_to_absolute_date(t)
             prompt = FLITER_PROMPT.format(query=fact)
             return prompt
         
-        data = self._load_data(data_dir, data_type)
         prompts = [get_prompt(his) for his in data]
         outputs = llm_generate(self.llm, self.tokenizer, self.param, prompts)
         res = [item for item, output in zip(data, outputs) if output.strip()[0].lower() != 'y']
