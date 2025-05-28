@@ -2,6 +2,7 @@ from torch import nn
 import torch
 import logging
 import numpy as np
+import random
 
 from .prompts import PICK_N_HIS, PICK_N_CHAINS, HIS_TO_ANSWER
 from .utils import int_to_ordinal, parse_predict_answer, parse_ids_to_list, llm_generate
@@ -22,10 +23,13 @@ class CoH(nn.Module):
         id2relation,    # relation dict
         s_his_dict,     # a dict from every entity to a list of its first-order histories 
         
-        expand_n=3,    # chain expand num
+        l_r=True,      # Logical Reasoning
+        i_s=True,      # Index Sorting
+        
+        expand_n=5,     # chain expand num
         
         top_n=30,       # pick top n most relevant histories/chains in every step
-        steps=1,        # total steps of CoH
+        steps=2,        # total steps of CoH
         alpha=0.3,      # hyper parameter in the output score formula of CoH
         
         llm=None,       # LLM used, vllm.LLM or transformers.AutoModelForCausalLM
@@ -53,6 +57,9 @@ class CoH(nn.Module):
         self.entity2id = entity2id
         self.id2relation = id2relation
         
+        self.l_r = l_r
+        self.i_s = i_s
+        
         self.s_his_dict = s_his_dict
         
         logging.info("testing LLM...")
@@ -62,7 +69,7 @@ class CoH(nn.Module):
         self.init()
         
     def init(self):
-        self.his_list_batch = []         # the current order his list
+        # self.his_list_batch = []         # the current order his list
         self.chain_list_batch = []       # the current order his chain list
         self.q_list = None               # the query list
         
@@ -88,17 +95,17 @@ class CoH(nn.Module):
         """
         test_prompt = HIS_TO_ANSWER.format(
     histories="""
-Government (Nigeria), Engage in diplomatic cooperation with, Independent Corrupt Practices Commission, on the 339th day; Independent Corrupt Practices Commission, Arrest or detain or charge with legal action to, Citizen (Nigeria), on the 308th day;
-Government (Nigeria), Criticize or denounce, Boko Haram, on the 337th day; 
-Boko Haram, Use conventional military force to, Citizen (Nigeria), on the 336th day;
-Government (Nigeria), Threaten, Education (Nigeria), on the 337th day; 
-Education (Nigeria), Make statement to, Muslim (Nigeria), on the 332nd day;
-Government (Nigeria), Make optimistic comment on, Citizen (Nigeria), on the 336th day;
-Citizen (Nigeria), Make an appeal or request to, Member of the Judiciary (Nigeria), on the 331st day;
+Government (Nigeria)\tEngage in diplomatic cooperation with\tIndependent Corrupt Practices Commission\ton the 339th day; Independent Corrupt Practices Commission\tArrest or detain or charge with legal action to\tCitizen (Nigeria)\ton the 308th day;
+Government (Nigeria)\tCriticize or denounce\tBoko Haram\ton the 337th day; 
+Boko Haram\tUse conventional military force to\tCitizen (Nigeria)\ton the 336th day;
+Government (Nigeria)\tThreaten\tEducation (Nigeria)\ton the 337th day; 
+Education (Nigeria)\tMake statement to\tMuslim (Nigeria)\ton the 332nd day;
+Government (Nigeria)\tMake optimistic comment on\tCitizen (Nigeria)\ton the 336th day;
+Citizen (Nigeria)\tMake an appeal or request to\tMember of the Judiciary (Nigeria)\ton the 331st day;
 · · · · · ·
     """,
     query="""
-Government (Nigeria), Make an appeal or request to, whom, on the 340th day?
+Government (Nigeria)\tMake an appeal or request to\twhom\ton the 340th day?
     """
 )
         try:
@@ -108,40 +115,43 @@ Government (Nigeria), Make an appeal or request to, whom, on the 340th day?
             logging.error(f"Error testing LLM: {e}")
             return False
     
-    def get_n_his(self, LR=False):
+    def get_n_his(self, his_list_batch, LR=False):
         """
         Get top n histories from first-order histories for a batch of queries
         """
         self.chain_list_batch = []
-        new_his_list_batch = []
         
-        prompts = []
-        for q, his_list in zip(self.q_list, self.his_list_batch): 
-            s, p, t = q
-            hstr_list = self.format_his_list(his_list)
-            his_context = ""
-            for idx in range(len(hstr_list)):
-                his_context += str(idx) + ":[ " + hstr_list[idx] + "];\n"
+        if self.l_r:
+            prompts = []
+            for q, his_list in zip(self.q_list, his_list_batch): 
+                s, p, t = q
+                hstr_list = self.format_his_list(his_list)
+                his_context = ""
+                for idx in range(len(hstr_list)):
+                    his_context += str(idx) + ":[ " + hstr_list[idx] + "];\n"
+                
+                query = self.id2entity[s] + "\t" + self.id2relation[p] + "\twhom\t" + int_to_ordinal(t)
+                prompt = PICK_N_HIS.format(
+                    histories=his_context,
+                    query=query,
+                    top_n=self.top_n
+                )
+                prompts.append(prompt)
             
-            query = self.id2entity[s] + "\t" + self.id2relation[p] + "\twhom\t" + int_to_ordinal(t)
-            prompt = PICK_N_HIS.format(
-                histories=his_context,
-                query=query,
-                top_n=self.top_n
-            )
-            prompts.append(prompt)
-        
-        outputs = self.generate(prompts)
-        
-        for output, his_list in zip(outputs, self.his_list_batch):
-            selected_his_list = parse_ids_to_list(output, his_list)
-            chain_list = [[item] for item in selected_his_list] # one-element chain
-            if len(chain_list) > self.top_n:
-                chain_list = chain_list[:self.top_n]
-            new_his_list_batch.append(selected_his_list)
-            self.chain_list_batch.append(chain_list)
+            outputs = self.generate(prompts)
             
-        self.his_list_batch = new_his_list_batch
+            for output, his_list in zip(outputs, his_list_batch):
+                selected_his_list = parse_ids_to_list(output, his_list)
+                chain_list = [[item] for item in selected_his_list] 
+                if len(chain_list) > self.top_n:
+                    chain_list = chain_list[:self.top_n]
+                self.chain_list_batch.append(chain_list)
+            
+        else:
+            for output, his_list in zip(outputs, his_list_batch):
+                chain_list = [[item] for item in his_list[-self.top_n:]] # use latest n histories
+                self.chain_list_batch.append(chain_list)
+                
                   
     def get_n_chains(self):
         """
@@ -149,28 +159,35 @@ Government (Nigeria), Make an appeal or request to, whom, on the 340th day?
         """
         results = []
         
-        prompts = []
-        for q, chain_list in zip(self.q_list, self.chain_list_batch):  
-            s, p, t = q
-            chains_context = ""
-            for idx in range(len(chain_list)):
-                chains_context += str(idx) + ": [" + ", ".join(self.format_his_list(chain_list[idx])) + "]\n"
+        if self.l_r:
+            prompts = []
+            for q, chain_list in zip(self.q_list, self.chain_list_batch):  
+                s, p, t = q
+                chains_context = ""
+                for idx in range(len(chain_list)):
+                    chains_context += str(idx) + ": [" + ", ".join(self.format_his_list(chain_list[idx])) + "]\n"
+                
+                query = self.id2entity[s] + "\t" + self.id2relation[p] + "\twhom\t" + int_to_ordinal(t)
+                prompt = PICK_N_CHAINS.format(
+                    chains=chains_context,
+                    query=query,
+                    top_n=self.top_n
+                )
+                prompts.append(prompt)
             
-            query = self.id2entity[s] + "\t" + self.id2relation[p] + "\twhom\t" + int_to_ordinal(t)
-            prompt = PICK_N_CHAINS.format(
-                chains=chains_context,
-                query=query,
-                top_n=self.top_n
-            )
-            prompts.append(prompt)
-        
-        outputs = self.generate(prompts)
-        
-        for output, chain_list in zip(outputs, self.chain_list_batch):
-            picked_list = parse_ids_to_list(output, chain_list)
-            if len(picked_list) > self.top_n:
-                picked_list = picked_list[:self.top_n]
-            results.append(picked_list)
+            outputs = self.generate(prompts)
+            
+            for output, chain_list in zip(outputs, self.chain_list_batch):
+                picked_list = parse_ids_to_list(output, chain_list)
+                if len(picked_list) > self.top_n:
+                    picked_list = picked_list[:self.top_n]
+                results.append(picked_list)
+        else:
+            for output, chain_list in zip(outputs, self.chain_list_batch):
+                picked_list = chain_list
+                if len(picked_list) > self.top_n:
+                    picked_list = picked_list[-self.top_n:] # use latest n histories
+                results.append(picked_list)
         
         self.chain_list_batch = results
         
@@ -209,8 +226,7 @@ Government (Nigeria), Make an appeal or request to, whom, on the 340th day?
         
         # Histories in s_his_dict are already [s, r, o, t], so no need to remap item[0], item[1] etc.
         return selected_neighbors
-    
-    # TODO: feat: update his_list_batch while expanding       
+           
     def expand_chains(self):
         """
         Expands chains to the next order for a batch of queries.
@@ -275,6 +291,10 @@ Government (Nigeria), Make an appeal or request to, whom, on the 340th day?
         def parse_output(output):
             candidates = parse_predict_answer(output, self.entity2id) # not include all the entities, only the entitities LLM predict,
                                                       # a list of entities'name, need to parse using self.entity2id
+                      
+            if not self.i_s:
+                random.shuffle(candidates)            # shuffle the indexes                     
+            
             res = np.zeros(self.num_entities, dtype=int)
             for i in range(len(candidates)):
                 res[self.entity2id[candidates[i]]] = i + 1
@@ -304,7 +324,13 @@ Government (Nigeria), Make an appeal or request to, whom, on the 340th day?
         return scores
 
     def forward(self, q_list):
+        """
+        input: (batch_size, 3)
+        output: (steps, (batch_size, num_entities))
+        """
         self.init() # clean
+        
+        step_scores_list = []
         
         self.q_list = q_list
         
@@ -320,12 +346,14 @@ Government (Nigeria), Make an appeal or request to, whom, on the 340th day?
             self.his_list_batch.append(initial_histories)
         
         self.get_n_his()
+        step_scores_list.append(self.get_predict_score())
         
-        for i in range(self.steps):     
+        for i in range(self.steps - 1):     
             self.expand_chains()        
             self.get_n_chains()
+            step_scores_list.append(self.get_predict_score())
             
-        return self.get_predict_score()    
+        return step_scores_list    
                 
                 
                
