@@ -390,7 +390,7 @@ class Evaluator:
         hits3 = (self.hits3 / self.total_queries) * 100  # Convert to percentage
         hits10 = (self.hits10 / self.total_queries) * 100  # Convert to percentage
 
-        print(f"--- {self.title} ---")
+        print(f"\n--- {self.title} ---")
         print(f"MRR (%): {mrr:.2f}")
         print(f"Hits@1 (%): {hits1:.2f}")
         print(f"Hits@3 (%): {hits3:.2f}")

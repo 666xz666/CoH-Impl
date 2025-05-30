@@ -150,8 +150,7 @@ Government (Nigeria)\tMake an appeal or request to\twhom\ton the 340th day?
             for output, his_list in zip(outputs, his_list_batch):
                 chain_list = [[item] for item in his_list[-self.top_n:]] # use latest n histories
                 self.chain_list_batch.append(chain_list)
-                
-                  
+                                 
     def get_n_chains(self):
         """
         Get top n chains from last order chains for a batch of queries

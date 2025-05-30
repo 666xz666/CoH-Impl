@@ -1,5 +1,6 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from vllm import LLM, SamplingParams
+from openai import OpenAI
 import re
 
 def remove_thinking(text):
@@ -63,7 +64,6 @@ def int_to_ordinal(num):
     
     return f"on the {num}{suffix} day"
 
-  
 def llm_generate(llm_instance, tokenizer_instance, generation_params, base_prompts: list[str]):
     """
     Generate outputs from the LLM based on the given prompts.
@@ -79,15 +79,7 @@ def llm_generate(llm_instance, tokenizer_instance, generation_params, base_promp
     """
     processed_prompts = []
 
-    # Check if it's a vLLM instance (assuming vllm.LLM is the type)
-    # You might need to import LLM from vllm for this check to work
-    try:
-        from vllm import LLM as VLLMLLExample # Use an alias to avoid name conflict if LLM is also defined elsewhere
-        is_vllm_instance = isinstance(llm_instance, VLLMLLExample)
-    except ImportError:
-        is_vllm_instance = False # vLLM not installed, assume transformers
-
-    if is_vllm_instance:  # vllm.LLM
+    if isinstance(llm_instance, LLM):  # vllm.LLM
         # Get the tokenizer from the vLLM instance
         llm_tokenizer = llm_instance.get_tokenizer()
 
@@ -121,6 +113,22 @@ def llm_generate(llm_instance, tokenizer_instance, generation_params, base_promp
         # print(generated_texts[0])
         
         return generated_texts
+    elif isinstance(llm_instance, OpenAI): # openai.OpenAI
+        print("\ncalling openai API...")
+        response = llm_instance.completions.create(
+                prompt=base_prompts,
+                **generation_params
+            )
+        generated_texts_ordered = [""] * len(base_prompts)
+        for choice in response.choices:
+            if choice.index is not None and 0 <= choice.index < len(base_prompts):
+                generated_texts_ordered[choice.index] = choice.text.strip()
+            else:
+                # Fallback if index is missing or invalid
+                print(f"Warning: OpenAI API response choice missing valid index. Text: {choice.text}")
+                # You might want to append or handle this differently based on requirements
+        print("done.")
+        return generated_texts_ordered
     else:  # transformers.AutoModelForCausalLM
         # Use the provided tokenizer for transformers models
         if tokenizer_instance is None:
