@@ -18,7 +18,7 @@ def parse_predict_answer(answer: str, dict) -> list:
     # print(candidates)
     return candidates
 
-def parse_ids_to_list(output, list):
+def parse_ids_to_list(output, list, id_list):
     """
     process LLM's output string
     "1, 2, 3, ..., 30"
@@ -28,11 +28,10 @@ def parse_ids_to_list(output, list):
     for item in output.split(","):
         try:
             num = int(item.strip())
-            list[num]
             i_list.append(num)
         except Exception:
             continue
-    res = [list[i] for i in sorted(set(i_list))]
+    res = [item for id, item in zip(id_list, list) if id in i_list]
     # print(res)
     return res
     
@@ -114,6 +113,10 @@ def llm_generate(llm_instance, tokenizer_instance, generation_params, base_promp
         
         return generated_texts
     elif isinstance(llm_instance, OpenAI): # openai.OpenAI
+        # for prompt in base_prompts[:1]:
+        #     print("---------------prompt--------------------")
+        #     print(prompt)
+        
         print("\ncalling openai API...")
         response = llm_instance.completions.create(
                 prompt=base_prompts,
@@ -127,6 +130,11 @@ def llm_generate(llm_instance, tokenizer_instance, generation_params, base_promp
                 # Fallback if index is missing or invalid
                 print(f"Warning: OpenAI API response choice missing valid index. Text: {choice.text}")
                 # You might want to append or handle this differently based on requirements
+        
+        # for text in generated_texts_ordered[:1]:
+        #     print("--------------answer-----------------")
+        #     print(text)
+            
         print("done.")
         return generated_texts_ordered
     else:  # transformers.AutoModelForCausalLM

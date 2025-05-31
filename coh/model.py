@@ -126,8 +126,12 @@ Government (Nigeria)\tMake an appeal or request to\twhom\ton the 340th day?
                 s, p, t = q
                 hstr_list = self.format_his_list(his_list)
                 his_context = ""
-                for idx in range(len(hstr_list)):
-                    his_context += str(idx) + ":[ " + hstr_list[idx] + "];\n"
+                
+                id_list = [i for i in range(len(hstr_list))]
+                random.shuffle(id_list)
+                
+                for id, hstr in zip(id_list, hstr_list):
+                    his_context += str(id) + ":[ " + hstr + "];\n"
                 
                 query = self.id2entity[s] + "\t" + self.id2relation[p] + "\twhom\t" + int_to_ordinal(t)
                 prompt = PICK_N_HIS.format(
@@ -140,10 +144,10 @@ Government (Nigeria)\tMake an appeal or request to\twhom\ton the 340th day?
             outputs = self.generate(prompts)
             
             for output, his_list in zip(outputs, his_list_batch):
-                selected_his_list = parse_ids_to_list(output, his_list)
+                selected_his_list = parse_ids_to_list(output, his_list, id_list)
                 chain_list = [[item] for item in selected_his_list] 
                 if len(chain_list) > self.top_n:
-                    chain_list = chain_list[:self.top_n]
+                    chain_list = chain_list[-self.top_n:]
                 self.chain_list_batch.append(chain_list)
             
         else:
@@ -162,8 +166,12 @@ Government (Nigeria)\tMake an appeal or request to\twhom\ton the 340th day?
             for q, chain_list in zip(self.q_list, self.chain_list_batch):  
                 s, p, t = q
                 chains_context = ""
-                for idx in range(len(chain_list)):
-                    chains_context += str(idx) + ": [" + ", ".join(self.format_his_list(chain_list[idx])) + "]\n"
+                
+                id_list = [i for i in range(len(chain_list))]
+                random.shuffle(id_list)
+                
+                for id, chain in zip(id_list, chain_list):
+                    chains_context += str(id) + ": [" + ", ".join(self.format_his_list(chain)) + "]\n"
                 
                 query = self.id2entity[s] + "\t" + self.id2relation[p] + "\twhom\t" + int_to_ordinal(t)
                 prompt = PICK_N_CHAINS.format(
@@ -176,9 +184,9 @@ Government (Nigeria)\tMake an appeal or request to\twhom\ton the 340th day?
             outputs = self.generate(prompts)
             
             for output, chain_list in zip(outputs, self.chain_list_batch):
-                picked_list = parse_ids_to_list(output, chain_list)
+                picked_list = parse_ids_to_list(output, chain_list, id_list)
                 if len(picked_list) > self.top_n:
-                    picked_list = picked_list[:self.top_n]
+                    picked_list = picked_list[-self.top_n:]
                 results.append(picked_list)
         else:
             for output, chain_list in zip(outputs, self.chain_list_batch):
