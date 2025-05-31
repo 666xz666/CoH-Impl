@@ -151,7 +151,7 @@ Government (Nigeria)\tMake an appeal or request to\twhom\ton the 340th day?
                 self.chain_list_batch.append(chain_list)
             
         else:
-            for output, his_list in zip(outputs, his_list_batch):
+            for his_list in his_list_batch:
                 chain_list = [[item] for item in his_list[-self.top_n:]] # use latest n histories
                 self.chain_list_batch.append(chain_list)
                                  
@@ -189,7 +189,7 @@ Government (Nigeria)\tMake an appeal or request to\twhom\ton the 340th day?
                     picked_list = picked_list[-self.top_n:]
                 results.append(picked_list)
         else:
-            for output, chain_list in zip(outputs, self.chain_list_batch):
+            for chain_list in self.chain_list_batch:
                 picked_list = chain_list
                 if len(picked_list) > self.top_n:
                     picked_list = picked_list[-self.top_n:] # use latest n histories
