@@ -109,8 +109,8 @@ class Data:
                      for evt in self.test_data]
         test_mask_conjugate = ~np.array(test_mask)
 
-        print('seen dataset proportion: ' + str(np.asarray(test_mask).sum()/len(test_mask)))
-        print('unseen dataset proportion: ' + str(test_mask_conjugate.sum()/test_mask_conjugate.size))
+        # print('seen dataset proportion: ' + str(np.asarray(test_mask).sum()/len(test_mask)))
+        # print('unseen dataset proportion: ' + str(test_mask_conjugate.sum()/test_mask_conjugate.size))
 
         self.test_data_seen_entity = self.test_data[test_mask]
         self.test_data_unseen_entity = self.test_data[test_mask_conjugate]
@@ -274,7 +274,7 @@ class Data:
         adj_his_format_dict = defaultdict(list)
         
         # Add events from the combined dataset (self.data)
-        for event in self.data:
+        for event in self.train_data:
             # Ensure event is a list of integers, similar to get_his_dict's output
             adj_his_format_dict[int(event[0])].append(event.tolist())
         
