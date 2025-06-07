@@ -351,13 +351,14 @@ Government (Nigeria)\tMake an appeal or request to\twhom\ton the 340th day?
             initial_histories = self.get_single_temporal_neighbor(subject_id, query_time, 100)
             his_list_batch.append(initial_histories)
         
+        # first-order histories
         self.get_n_his(his_list_batch)
-        step_scores_list.append(self.get_predict_score())
+        step_scores_list.append(self.get_predict_score()) # step1 predicting
         
         for i in range(self.steps - 1):     
             self.expand_chains()        
             self.get_n_chains()
-            step_scores_list.append(self.get_predict_score())
+            step_scores_list.append(self.get_predict_score()) # step 2-k predicting
             
         return step_scores_list    
                 
