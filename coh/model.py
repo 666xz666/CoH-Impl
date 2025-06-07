@@ -26,7 +26,7 @@ class CoH(nn.Module):
         l_r=True,      # Logical Reasoning
         i_s=True,      # Index Sorting
         
-        expand_n=5,     # chain expand num
+        expand_n=3,     # chain expand num
         
         top_n=30,       # pick top n most relevant histories/chains in every step
         steps=2,        # total steps of CoH

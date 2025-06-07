@@ -101,7 +101,7 @@ if __name__ == "__main__":
         llm=llm,
         # tokenizer=tokenizer,
         params=params_coh_vllm,
-        expand_n=5,
+        expand_n=3,
         l_r=l_r,
         i_s=i_s
     )
